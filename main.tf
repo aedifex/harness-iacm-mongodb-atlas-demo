@@ -4,6 +4,11 @@ terraform {
       source  = "mongodb/mongodbatlas"
       version = "~> 2.0"
     }
+
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+    }
   }
 }
 
@@ -37,6 +42,38 @@ resource "mongodbatlas_advanced_cluster" "demo" {
   }]
 }
 
+resource "random_password" "db_password" {
+  length  = 20
+  special = false
+}
+
+resource "mongodbatlas_database_user" "demo" {
+  project_id         = mongodbatlas_project.demo.id
+  username           = "demo_user"
+  password           = random_password.db_password.result
+  auth_database_name = "admin"
+
+  roles {
+    role_name     = "readWriteAnyDatabase"
+    database_name = "admin"
+  }
+}
+
 output "mongodb_srv_host" {
   value = mongodbatlas_advanced_cluster.demo.connection_strings.standard_srv
+}
+
+output "mongodb_username" {
+  value = mongodbatlas_database_user.demo.username
+}
+
+output "mongodb_password" {
+  value     = random_password.db_password.result
+  sensitive = true
+}
+
+output "mongodb_connection_string" {
+  value = "mongodb+srv://${mongodbatlas_database_user.demo.username}:${random_password.db_password.result}@${trimprefix(mongodbatlas_advanced_cluster.demo.connection_strings.standard_srv, "mongodb+srv://")}/?appName=${mongodbatlas_advanced_cluster.demo.name}"
+
+  sensitive = true
 }
